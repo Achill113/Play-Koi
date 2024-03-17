@@ -6,9 +6,7 @@
 use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
-use std::{f32::consts::*, fmt};
-
-use crate::Ground;
+use std::fmt;
 
 pub struct CameraControllerPlugin;
 
@@ -159,7 +157,7 @@ fn run_camera_controller(
             + controller.velocity.y * dt * Vec3::Y
             + -controller.velocity.z * dt * Vec3::Z;
 
-        // Handle mouse controls
+        // Handle scroll zoom
         let mut scroll = 0.0;
         for scroll_event in scroll_events.read() {
             let amount = match scroll_event.unit {
@@ -174,6 +172,7 @@ fn run_camera_controller(
 
         transform.translation += forward * scroll * scroll_speed;
 
+        // Handle mouse controls
         let mut cursor_grab_change = false;
         if mouse_button_input.just_pressed(controller.mouse_key_pan_grab) || mouse_button_input.just_pressed(controller.mouse_key_orbit_grab) {
             *mouse_cursor_grab = true;
@@ -191,7 +190,6 @@ fn run_camera_controller(
         }
         let cursor_grab = *mouse_cursor_grab;
 
-        // Handle cursor grab
         if cursor_grab_change {
             if cursor_grab {
                 for mut window in &mut windows {
@@ -210,7 +208,7 @@ fn run_camera_controller(
             }
         }
 
-        // Handle mouse input
+        // Apply mouse input
         let mut mouse_delta = Vec2::ZERO;
         if cursor_grab {
             for mouse_event in mouse_events.read() {
