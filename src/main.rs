@@ -2,7 +2,7 @@ pub mod plugins;
 
 use bevy::{prelude::*, render::{settings::{Backends, RenderCreation, WgpuSettings}, RenderPlugin}};
 use bevy_rapier3d::prelude::*;
-use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::{Colored, HoverPlugin, Interactable}, light::LightPlugin};
+use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::{Colored, HoverPlugin, Interactable}, light::LightPlugin, tile::TilePlugin};
 
 #[derive(Component)]
 struct Ground;
@@ -71,32 +71,7 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials
         Ground,
     ));
 
-    // test cubes
-    let grid_size = 25;
-    let cube_size = 5.0;
-    let cube_height = 1.0;
-    let grass_green = Color::rgb_u8(0, 154, 23);
-
-    for row in 0..grid_size {
-        for col in 0..grid_size {
-            let x = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (row as f32 * cube_size);
-            let z = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (col as f32 * cube_size);
-
-            commands.spawn((
-                PbrBundle {
-                    mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, cube_height, cube_size))),
-                    material: materials.add(grass_green),
-                    transform: Transform::from_xyz(x, cube_height / 2.0, z),
-                    ..default()
-                },
-                Collider::cuboid(cube_size / 2.0, cube_height / 2.0, cube_size / 2.0),
-                Interactable,
-                Colored {
-                    color: grass_green,
-                },
-            ));
-        }
-    }
+    
 
     // commands.spawn((
     //     PbrBundle {
@@ -135,7 +110,7 @@ fn main() {
         )
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         // .add_plugins(RapierDebugRenderPlugin::default())
-        .add_plugins((CameraControllerPlugin, LightPlugin, HoverPlugin))
+        .add_plugins((CameraControllerPlugin, LightPlugin, HoverPlugin, TilePlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, draw_cursor)
         .run();
