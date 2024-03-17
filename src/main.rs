@@ -64,41 +64,52 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(200.0, 200.0)),
-            material: materials.add(Color::rgb_u8(0, 154, 23)),
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            material: materials.add(Color::rgba_u8(0, 154, 23, 0)),
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },
         Ground,
     ));
 
     // test cubes
+    let grid_size = 25;
     let cube_size = 5.0;
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, cube_size, cube_size))),
-            material: materials.add(Color::BLUE),
-            transform: Transform::from_xyz(0.0, cube_size / 2.0, 0.0),
-            ..default()
-        },
-        Collider::cuboid(cube_size / 2.0, cube_size / 2.0, cube_size / 2.0),
-        Interactable,
-        Colored {
-            color: Color::BLUE,
-        },
-    ));
+    let cube_height = 1.0;
+    let grass_green = Color::rgb_u8(0, 154, 23);
 
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, cube_size, cube_size))),
-            material: materials.add(Color::BLUE),
-            transform: Transform::from_xyz(-10.0, cube_size / 2.0, 0.0),
-            ..default()
-        },
-        Collider::cuboid(cube_size / 2.0, cube_size / 2.0, cube_size / 2.0),
-        Colored {
-            color: Color::BLUE,
-        },
-    ));
+    for row in 0..grid_size {
+        for col in 0..grid_size {
+            let x = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (row as f32 * cube_size);
+            let z = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (col as f32 * cube_size);
+
+            commands.spawn((
+                PbrBundle {
+                    mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, cube_height, cube_size))),
+                    material: materials.add(grass_green),
+                    transform: Transform::from_xyz(x, cube_height / 2.0, z),
+                    ..default()
+                },
+                Collider::cuboid(cube_size / 2.0, cube_height / 2.0, cube_size / 2.0),
+                Interactable,
+                Colored {
+                    color: grass_green,
+                },
+            ));
+        }
+    }
+
+    // commands.spawn((
+    //     PbrBundle {
+    //         mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, cube_height, cube_size))),
+    //         material: materials.add(Color::BLUE),
+    //         transform: Transform::from_xyz(-10.0, cube_height / 2.0, 0.0),
+    //         ..default()
+    //     },
+    //     Collider::cuboid(cube_size / 2.0, cube_height / 2.0, cube_size / 2.0),
+    //     Colored {
+    //         color: Color::BLUE,
+    //     },
+    // ));
 }
 
 fn main() {
@@ -123,7 +134,7 @@ fn main() {
             .build()
         )
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugins(RapierDebugRenderPlugin::default())
+        // .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins((CameraControllerPlugin, LightPlugin, HoverPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, draw_cursor)
