@@ -8,6 +8,8 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use std::{f32::consts::*, fmt};
 
+use crate::Ground;
+
 pub struct CameraControllerPlugin;
 
 impl Plugin for CameraControllerPlugin {
@@ -16,9 +18,7 @@ impl Plugin for CameraControllerPlugin {
     }
 }
 
-/// Based on Valorant's default sensitivity, not entirely sure why it is exactly 1.0 / 180.0,
-/// but I'm guessing it is a misunderstanding between degrees/radians and then sticking with
-/// it because it felt nice.
+/// This is stollen code. I don't know why its 1.0 / 180.0.
 pub const RADIANS_PER_DOT: f32 = 1.0 / 180.0;
 
 #[derive(Component)]
@@ -40,6 +40,8 @@ pub struct CameraController {
     pub pitch: f32,
     pub yaw: f32,
     pub velocity: Vec3,
+    pub azimuth: f32,
+    pub elevation: f32,
 }
 
 impl Default for CameraController {
@@ -62,6 +64,8 @@ impl Default for CameraController {
             pitch: 0.0,
             yaw: 0.0,
             velocity: Vec3::ZERO,
+            azimuth: 0.0,
+            elevation: 0.0,
         }
     }
 }
@@ -117,19 +121,7 @@ fn run_camera_controller(
             return;
         }
 
-        let mut scroll = 0.0;
-        for scroll_event in scroll_events.read() {
-            let amount = match scroll_event.unit {
-                MouseScrollUnit::Line => scroll_event.y,
-                MouseScrollUnit::Pixel => scroll_event.y / 16.0,
-            };
-            scroll += amount;
-        }
-
         let mut axis_input = Vec3::ZERO;
-
-        let scroll_speed = 5.0;
-        axis_input.z += scroll * scroll_speed;
 
         // Handle key input
         if key_input.pressed(controller.key_forward) {
@@ -151,6 +143,36 @@ fn run_camera_controller(
             axis_input.y -= 1.0;
         }
 
+        // Apply movement update
+        if axis_input != Vec3::ZERO {
+            controller.velocity = axis_input.normalize() * controller.speed;
+        } else {
+            let friction = controller.friction.clamp(0.0, 1.0);
+            controller.velocity *= 1.0 - friction;
+            if controller.velocity.length_squared() < 1e-6 {
+                controller.velocity = Vec3::ZERO;
+            }
+        }
+
+        // Apply transformation
+        transform.translation += controller.velocity.x * dt * Vec3::X
+            + controller.velocity.y * dt * Vec3::Y
+            + -controller.velocity.z * dt * Vec3::Z;
+
+        // Handle mouse controls
+        let mut scroll = 0.0;
+        for scroll_event in scroll_events.read() {
+            let amount = match scroll_event.unit {
+                MouseScrollUnit::Line => scroll_event.y,
+                MouseScrollUnit::Pixel => scroll_event.y / 16.0,
+            };
+            scroll += amount;
+        }
+
+        let scroll_speed = 5.0;
+        let forward = transform.forward();
+
+        transform.translation += forward * scroll * scroll_speed;
 
         let mut cursor_grab_change = false;
         if mouse_button_input.just_pressed(controller.mouse_key_pan_grab) || mouse_button_input.just_pressed(controller.mouse_key_orbit_grab) {
@@ -168,22 +190,6 @@ fn run_camera_controller(
             *last_mouse_button_pressed = None;
         }
         let cursor_grab = *mouse_cursor_grab;
-
-        // Apply movement update
-        if axis_input != Vec3::ZERO {
-            controller.velocity = axis_input.normalize() * controller.speed;
-        } else {
-            let friction = controller.friction.clamp(0.0, 1.0);
-            controller.velocity *= 1.0 - friction;
-            if controller.velocity.length_squared() < 1e-6 {
-                controller.velocity = Vec3::ZERO;
-            }
-        }
-        let forward = *transform.forward();
-        let right = *transform.right();
-        transform.translation += controller.velocity.x * dt * right
-            + controller.velocity.y * dt * Vec3::Y
-            + controller.velocity.z * dt * forward;
 
         // Handle cursor grab
         if cursor_grab_change {
@@ -217,19 +223,9 @@ fn run_camera_controller(
         if mouse_delta != Vec2::ZERO {
             if let Some(mouse_button) = *last_mouse_button_pressed {
                 match mouse_button {
-                    MouseButton::Left => {
-                        // Apply look update
-                        controller.pitch = (controller.pitch
-                                            - mouse_delta.y * RADIANS_PER_DOT * controller.sensitivity)
-                            .clamp(-PI / 2., PI / 2.);
-                        controller.yaw -= mouse_delta.x * RADIANS_PER_DOT * controller.sensitivity;
-                        transform.rotation =
-                            Quat::from_euler(EulerRot::ZYX, 0.0, controller.yaw, controller.pitch);
-                    }
-                    MouseButton::Right => {
-                        mouse_delta *= controller.speed;
-                        transform.translation += -mouse_delta.x * dt * right
-                            + mouse_delta.y * dt * Vec3::Y;
+                    MouseButton::Left | MouseButton::Right => {
+                        transform.translation += controller.speed * -mouse_delta.x * dt * Vec3::X
+                            + controller.speed * -mouse_delta.y * dt * Vec3::Z;
                     }
                     _ => {}
                 }
