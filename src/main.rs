@@ -2,7 +2,7 @@ pub mod plugins;
 
 use bevy::{prelude::*, render::{settings::{Backends, RenderCreation, WgpuSettings}, RenderPlugin}};
 use bevy_rapier3d::prelude::*;
-use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::{Colored, HoverPlugin, Interactable}, light::LightPlugin, tile::TilePlugin};
+use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::HoverPlugin, light::LightPlugin, tile::TilePlugin};
 
 #[derive(Component)]
 struct Ground;
