@@ -39,7 +39,7 @@ fn handle_hover_exit(
         if let Some(tile) = tile_option {
             let material = materials.get_mut(material_handle).unwrap();
 
-            *material = tile.material.clone();
+            material.base_color = tile.color;
         }
     }
 }

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use bevy::{prelude::*, render::render_resource::Face};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use bevy_water::material::StandardWaterMaterial;
 
 use super::hover::Interactable;
 
@@ -12,59 +11,42 @@ const TILE_SIZE: f32 = 5.0;
 pub enum TileType {
     Grass,
     Dirt,
-    Water,
     Path,
 }
 
 #[derive(Component, Debug, Clone)]
 pub struct Tile {
     pub tile_type: TileType,
-    pub material: dyn Asset,
+    pub color: Color,
     pub height: f32,
     pub position: Vec3,
 }
 
 pub struct TileGenerator {
-    tile_materials: HashMap<TileType, dyn Asset>,
+    tile_colors: HashMap<TileType, Color>,
     tile_heights: HashMap<TileType, f32>,
 }
 
 impl Default for TileGenerator {
     fn default() -> Self {
         Self {
-            tile_materials: HashMap::from([
+            tile_colors: HashMap::from([
                 (
                     TileType::Grass,
-                    StandardMaterial {
-                        base_color: Color::rgba_u8(179, 202, 130, 255),
-                        ..default()
-                    },
+                        Color::rgba_u8(179, 202, 130, 255),
                 ),
                 (
                     TileType::Dirt,
-                    StandardMaterial {
-                        base_color: Color::rgba_u8(125, 96, 65, 255),
-                        ..default()
-                    },
-                ),
-                (
-                    TileType::Water,
-                    StandardWaterMaterial {
-                        ..default()
-                    },
+                    Color::rgba_u8(125, 96, 65, 255),
                 ),
                 (
                     TileType::Path,
-                    StandardMaterial {
-                        base_color: Color::rgba_u8(189, 175, 188, 255),
-                        ..default()
-                    },
+                    Color::rgba_u8(189, 175, 188, 255),
                 ),
             ]),
             tile_heights: HashMap::from([
                 (TileType::Grass, 5.0),
                 (TileType::Dirt, 4.5),
-                (TileType::Water, 4.01),
                 (TileType::Path, 5.0),
             ]),
         }
@@ -73,12 +55,12 @@ impl Default for TileGenerator {
 
 impl TileGenerator {
     pub fn generate(&self, tile_type: TileType, position: &Vec2) -> Tile {
-        let material = &self.tile_materials[&tile_type];
+        let color = &self.tile_colors[&tile_type];
         let height = &self.tile_heights[&tile_type];
 
         Tile {
             tile_type,
-            material: material.clone(),
+            color: *color,
             height: *height,
             position: Vec3::new(position.x, height / 2.0, position.y),
         }
@@ -118,7 +100,10 @@ fn setup(
                         tile.height,
                         TILE_SIZE,
                     ))),
-                    material: materials.add(tile.material.clone()),
+                    material: materials.add(StandardMaterial{
+                        base_color: tile.color,
+                        ..default()
+                    }),
                     transform: Transform::from_xyz(
                         tile.position.x,
                         tile.position.y,
@@ -174,9 +159,8 @@ fn handle_click(
                             tile_generator.generate(TileType::Path, &to_top_down(tile.position))
                         }
                         TileType::Path => {
-                            tile_generator.generate(TileType::Water, &to_top_down(tile.position))
+                            tile_generator.generate(TileType::Grass, &to_top_down(tile.position))
                         }
-                        _ => tile_generator.generate(TileType::Grass, &to_top_down(tile.position)),
                     };
 
                     *tile = new_tile.clone();
@@ -185,7 +169,7 @@ fn handle_click(
 
                     let material = materials.get_mut(material_handle).unwrap();
 
-                    *material = new_tile.material.clone();
+                    material.base_color = new_tile.color;
 
                     let mut transform = transform_query.get_mut(entity).unwrap();
                     // using TILE_SIZE here because tiles are cubes
