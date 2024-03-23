@@ -1,21 +1,30 @@
 pub mod plugins;
 
+#[cfg(feature = "depth_prepass")]
+use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::{prelude::*, render::{settings::{Backends, RenderCreation, WgpuSettings}, RenderPlugin}};
 use bevy_rapier3d::prelude::*;
-use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::HoverPlugin, light::LightPlugin, tile::TilePlugin};
+use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::HoverPlugin, light::LightPlugin, tile::TilePlugin, water::WaterPlugin};
 
 #[derive(Component)]
 struct Ground;
 
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     // camera
-    commands.spawn((
+    let mut cam = commands.spawn((
         Camera3dBundle {
             transform: Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
         CameraController::default(),
+        Name::new("Camera"),
     ));
+
+    #[cfg(feature = "depth_prepass")]
+    {
+      // This will write the depth buffer to a texture that you can use in the main pass
+      cam.insert(DepthPrepass);
+    }
 
     // ambient light
     // NOTE: The ambient light is used to scale how bright the environment map is so with a bright
@@ -60,7 +69,7 @@ fn main() {
         )
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         // .add_plugins(RapierDebugRenderPlugin::default())
-        .add_plugins((CameraControllerPlugin, LightPlugin, HoverPlugin, TilePlugin))
+        .add_plugins((WaterPlugin, CameraControllerPlugin, LightPlugin, HoverPlugin, TilePlugin))
         .add_systems(Startup, setup)
         .run();
 }

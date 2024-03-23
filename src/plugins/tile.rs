@@ -5,7 +5,20 @@ use bevy_rapier3d::prelude::*;
 
 use super::hover::Interactable;
 
-const TILE_SIZE: f32 = 5.0;
+pub const GRID_SIZE: u32 = 50;
+
+#[derive(Resource)]
+pub struct TileSettings {
+    pub tile_size: f32,
+}
+
+impl Default for TileSettings {
+    fn default() -> Self {
+        Self {
+            tile_size: 5.0,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TileType {
@@ -71,7 +84,9 @@ pub struct TilePlugin;
 
 impl Plugin for TilePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
+        app
+            .insert_resource(TileSettings::default())
+            .add_systems(Startup, setup)
             .add_systems(Update, handle_click);
     }
 }
@@ -80,30 +95,28 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    tile_settings: Res<TileSettings>,
 ) {
     let tile_generator = TileGenerator::default();
 
     // test cubes
     let grid_size = 50;
 
-    for row in 0..grid_size {
-        for col in 0..grid_size {
-            let x = 0.0 - ((grid_size as f32 * TILE_SIZE) / 2.0) + (row as f32 * TILE_SIZE);
-            let z = 0.0 - ((grid_size as f32 * TILE_SIZE) / 2.0) + (col as f32 * TILE_SIZE);
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let x = 0.0 - ((grid_size as f32 * tile_settings.tile_size) / 2.0) + (row as f32 * tile_settings.tile_size);
+            let z = 0.0 - ((grid_size as f32 * tile_settings.tile_size) / 2.0) + (col as f32 * tile_settings.tile_size);
             let position = Vec2::new(x, z);
             let tile = tile_generator.generate(TileType::Grass, &position);
 
             commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(Cuboid::from_size(Vec3::new(
-                        TILE_SIZE,
+                        tile_settings.tile_size,
                         tile.height,
-                        TILE_SIZE,
+                        tile_settings.tile_size,
                     ))),
-                    material: materials.add(StandardMaterial{
-                        base_color: tile.color,
-                        ..default()
-                    }),
+                    material: materials.add(tile.color,),
                     transform: Transform::from_xyz(
                         tile.position.x,
                         tile.position.y,
@@ -111,7 +124,7 @@ fn setup(
                     ),
                     ..default()
                 },
-                Collider::cuboid(TILE_SIZE / 2.0, tile.height / 2.0, TILE_SIZE / 2.0),
+                Collider::cuboid(tile_settings.tile_size / 2.0, tile.height / 2.0, tile_settings.tile_size / 2.0),
                 Interactable,
                 tile,
             ));
@@ -128,6 +141,7 @@ fn handle_click(
     material_query: Query<&Handle<StandardMaterial>, With<Interactable>>,
     mut transform_query: Query<&mut Transform>,
     mut tile_query: Query<&mut Tile, With<Tile>>,
+    tile_settings: Res<TileSettings>,
 ) {
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let tile_generator = TileGenerator::default();
@@ -172,8 +186,8 @@ fn handle_click(
                     material.base_color = new_tile.color;
 
                     let mut transform = transform_query.get_mut(entity).unwrap();
-                    // using TILE_SIZE here because tiles are cubes
-                    transform.scale.y = tile.height / TILE_SIZE;
+                    // using tile_size here because tiles are cubes
+                    transform.scale.y = tile.height / tile_settings.tile_size;
                     transform.translation = tile.position;
                 }
                 Err(_) => {}
