@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::render_resource::Face};
 use bevy_rapier3d::prelude::*;
+use bevy_water::material::StandardWaterMaterial;
 
 use super::hover::Interactable;
 
-const CUBE_SIZE: f32 = 0.5;
+const TILE_SIZE: f32 = 5.0;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum TileType {
@@ -15,70 +16,71 @@ pub enum TileType {
     Path,
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone)]
 pub struct Tile {
     pub tile_type: TileType,
-    pub color: Color,
+    pub material: dyn Asset,
     pub height: f32,
+    pub position: Vec3,
 }
 
 pub struct TileGenerator {
-    tile_colors: HashMap<TileType, Color>,
+    tile_materials: HashMap<TileType, dyn Asset>,
     tile_heights: HashMap<TileType, f32>,
 }
 
 impl Default for TileGenerator {
     fn default() -> Self {
         Self {
-            tile_colors: HashMap::from([
+            tile_materials: HashMap::from([
                 (
-                    TileType::Grass, 
-                    Color::rgb_u8(179,202,130),
+                    TileType::Grass,
+                    StandardMaterial {
+                        base_color: Color::rgba_u8(179, 202, 130, 255),
+                        ..default()
+                    },
                 ),
                 (
                     TileType::Dirt,
-                    Color::rgb_u8(125,96,65),
+                    StandardMaterial {
+                        base_color: Color::rgba_u8(125, 96, 65, 255),
+                        ..default()
+                    },
                 ),
                 (
                     TileType::Water,
-                    Color::rgb_u8(35,137,218),
+                    StandardWaterMaterial {
+                        ..default()
+                    },
                 ),
                 (
                     TileType::Path,
-                    Color::rgb_u8(189,175,188),
+                    StandardMaterial {
+                        base_color: Color::rgba_u8(189, 175, 188, 255),
+                        ..default()
+                    },
                 ),
             ]),
             tile_heights: HashMap::from([
-                (
-                    TileType::Grass,
-                    1.0,
-                ),
-                (
-                    TileType::Dirt,
-                    0.5,
-                ),
-                (
-                    TileType::Water,
-                    0.01,
-                ),
-                (
-                    TileType::Path,
-                    1.0,
-                ),
+                (TileType::Grass, 5.0),
+                (TileType::Dirt, 4.5),
+                (TileType::Water, 4.01),
+                (TileType::Path, 5.0),
             ]),
         }
     }
 }
 
 impl TileGenerator {
-    pub fn generate(&self, tile_type: TileType) -> Tile {
-        let color = &self.tile_colors[&tile_type];
+    pub fn generate(&self, tile_type: TileType, position: &Vec2) -> Tile {
+        let material = &self.tile_materials[&tile_type];
         let height = &self.tile_heights[&tile_type];
 
         Tile {
             tile_type,
-            color: *color,
+            material: material.clone(),
             height: *height,
+            position: Vec3::new(position.x, height / 2.0, position.y),
         }
     }
 }
@@ -87,33 +89,44 @@ pub struct TilePlugin;
 
 impl Plugin for TilePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Startup, setup)
+        app.add_systems(Startup, setup)
             .add_systems(Update, handle_click);
     }
 }
 
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     let tile_generator = TileGenerator::default();
 
     // test cubes
     let grid_size = 50;
-    let cube_size = 5.0;
 
     for row in 0..grid_size {
         for col in 0..grid_size {
-            let tile = tile_generator.generate(TileType::Grass);
-            let x = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (row as f32 * cube_size);
-            let z = 0.0 - ((grid_size as f32 * cube_size) / 2.0) + (col as f32 * cube_size);
+            let x = 0.0 - ((grid_size as f32 * TILE_SIZE) / 2.0) + (row as f32 * TILE_SIZE);
+            let z = 0.0 - ((grid_size as f32 * TILE_SIZE) / 2.0) + (col as f32 * TILE_SIZE);
+            let position = Vec2::new(x, z);
+            let tile = tile_generator.generate(TileType::Grass, &position);
 
             commands.spawn((
                 PbrBundle {
-                    mesh: meshes.add(Cuboid::from_size(Vec3::new(cube_size, tile.height, cube_size))),
-                    material: materials.add(tile.color),
-                    transform: Transform::from_xyz(x, tile.height / 2.0, z),
+                    mesh: meshes.add(Cuboid::from_size(Vec3::new(
+                        TILE_SIZE,
+                        tile.height,
+                        TILE_SIZE,
+                    ))),
+                    material: materials.add(tile.material.clone()),
+                    transform: Transform::from_xyz(
+                        tile.position.x,
+                        tile.position.y,
+                        tile.position.z,
+                    ),
                     ..default()
                 },
-                Collider::cuboid(cube_size / 2.0, tile.height / 2.0, cube_size / 2.0),
+                Collider::cuboid(TILE_SIZE / 2.0, tile.height / 2.0, TILE_SIZE / 2.0),
                 Interactable,
                 tile,
             ));
@@ -154,10 +167,16 @@ fn handle_click(
             match tile_query.get_mut(entity) {
                 Ok(mut tile) => {
                     let new_tile = match tile.tile_type {
-                        TileType::Grass => tile_generator.generate(TileType::Dirt),
-                        TileType::Dirt => tile_generator.generate(TileType::Path),
-                        TileType::Path => tile_generator.generate(TileType::Water),
-                        _ => tile_generator.generate(TileType::Grass)
+                        TileType::Grass => {
+                            tile_generator.generate(TileType::Dirt, &to_top_down(tile.position))
+                        }
+                        TileType::Dirt => {
+                            tile_generator.generate(TileType::Path, &to_top_down(tile.position))
+                        }
+                        TileType::Path => {
+                            tile_generator.generate(TileType::Water, &to_top_down(tile.position))
+                        }
+                        _ => tile_generator.generate(TileType::Grass, &to_top_down(tile.position)),
                     };
 
                     *tile = new_tile.clone();
@@ -166,14 +185,19 @@ fn handle_click(
 
                     let material = materials.get_mut(material_handle).unwrap();
 
-                    material.base_color = new_tile.color;
+                    *material = new_tile.material.clone();
 
                     let mut transform = transform_query.get_mut(entity).unwrap();
-                    transform.scale.y = tile.height;
+                    // using TILE_SIZE here because tiles are cubes
+                    transform.scale.y = tile.height / TILE_SIZE;
+                    transform.translation = tile.position;
                 }
                 Err(_) => {}
             }
-
         }
     }
+}
+
+pub fn to_top_down(vec_3d: Vec3) -> Vec2 {
+    Vec2::new(vec_3d.x, vec_3d.z)
 }
