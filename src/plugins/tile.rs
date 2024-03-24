@@ -25,6 +25,7 @@ pub enum TileType {
     Grass,
     Dirt,
     Path,
+    Water,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -56,11 +57,16 @@ impl Default for TileGenerator {
                     TileType::Path,
                     Color::rgba_u8(189, 175, 188, 255),
                 ),
+                (
+                    TileType::Water,
+                    Color::rgba_u8(114, 162, 208, 0),
+                )
             ]),
             tile_heights: HashMap::from([
                 (TileType::Grass, 5.0),
                 (TileType::Dirt, 4.5),
                 (TileType::Path, 5.0),
+                (TileType::Water, 4.0),
             ]),
         }
     }
@@ -109,6 +115,11 @@ fn setup(
             let position = Vec2::new(x, z);
             let tile = tile_generator.generate(TileType::Grass, &position);
 
+            let material = StandardMaterial {
+                base_color: tile.color,
+                ..default()
+            };
+
             commands.spawn((
                 PbrBundle {
                     mesh: meshes.add(Cuboid::from_size(Vec3::new(
@@ -116,7 +127,7 @@ fn setup(
                         tile.height,
                         tile_settings.tile_size,
                     ))),
-                    material: materials.add(tile.color,),
+                    material: materials.add(material),
                     transform: Transform::from_xyz(
                         tile.position.x,
                         tile.position.y,
@@ -173,6 +184,9 @@ fn handle_click(
                             tile_generator.generate(TileType::Path, &to_top_down(tile.position))
                         }
                         TileType::Path => {
+                            tile_generator.generate(TileType::Water, &to_top_down(tile.position))
+                        }
+                        TileType::Water => {
                             tile_generator.generate(TileType::Grass, &to_top_down(tile.position))
                         }
                     };
@@ -184,6 +198,12 @@ fn handle_click(
                     let material = materials.get_mut(material_handle).unwrap();
 
                     material.base_color = new_tile.color;
+
+                    if tile.tile_type == TileType::Water {
+                        material.alpha_mode = AlphaMode::Blend;
+                    } else {
+                        material.alpha_mode = AlphaMode::Opaque;
+                    }
 
                     let mut transform = transform_query.get_mut(entity).unwrap();
                     // using tile_size here because tiles are cubes

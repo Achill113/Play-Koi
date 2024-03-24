@@ -1,17 +1,15 @@
 pub mod plugins;
 
-#[cfg(feature = "depth_prepass")]
-use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::{prelude::*, render::{settings::{Backends, RenderCreation, WgpuSettings}, RenderPlugin}};
 use bevy_rapier3d::prelude::*;
-use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::HoverPlugin, light::LightPlugin, tile::TilePlugin, water::WaterPlugin};
+use plugins::{camera_controller::{CameraController, CameraControllerPlugin}, hover::HoverPlugin, light::LightPlugin, tile::{TilePlugin, TileSettings, GRID_SIZE}, water::WaterPlugin};
 
 #[derive(Component)]
 struct Ground;
 
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>, tile_settings: Res<TileSettings>) {
     // camera
-    let mut cam = commands.spawn((
+    commands.spawn((
         Camera3dBundle {
             transform: Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
@@ -20,26 +18,14 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials
         Name::new("Camera"),
     ));
 
-    #[cfg(feature = "depth_prepass")]
-    {
-      // This will write the depth buffer to a texture that you can use in the main pass
-      cam.insert(DepthPrepass);
-    }
-
-    // ambient light
-    // NOTE: The ambient light is used to scale how bright the environment map is so with a bright
-    // environment map, use an appropriate color and brightness to match
-    commands.insert_resource(AmbientLight {
-        color: Color::WHITE,
-        brightness: 1000.0,
-    });
-
     // ground
+    let size = tile_settings.tile_size * GRID_SIZE as f32;
+
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0)),
-            material: materials.add(Color::rgba_u8(0, 154, 23, 0)),
-            transform: Transform::from_xyz(0.0, 1.0, 0.0),
+            mesh: meshes.add(Plane3d::default().mesh().size(size, size)),
+            material: materials.add(Color::rgb_u8(114, 162, 208)),
+            transform: Transform::from_xyz(-tile_settings.tile_size / 2.0, 0.0, -tile_settings.tile_size / 2.0),
             ..default()
         },
         Ground,
