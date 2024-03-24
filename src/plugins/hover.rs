@@ -46,7 +46,7 @@ fn handle_hover_exit(
 
 fn hover(
     mut commands: Commands,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     windows: Query<&Window>,
     rapier_context: Res<RapierContext>,
     interactable_query: Query<Entity, With<Interactable>>,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::hover::Interactable;
+use super::{hover::Interactable, tools::ToolModeState};
 
 pub const GRID_SIZE: u32 = 50;
 
@@ -153,8 +153,9 @@ fn handle_click(
     mut transform_query: Query<&mut Transform>,
     mut tile_query: Query<&mut Tile, With<Tile>>,
     tile_settings: Res<TileSettings>,
+    state: Res<State<ToolModeState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if *state.get() != ToolModeState::None && mouse_button_input.just_pressed(MouseButton::Left) {
         let tile_generator = TileGenerator::default();
 
         let (camera, camera_transform) = camera_query.single();
@@ -176,39 +177,42 @@ fn handle_click(
         ) {
             match tile_query.get_mut(entity) {
                 Ok(mut tile) => {
-                    let new_tile = match tile.tile_type {
-                        TileType::Grass => {
-                            tile_generator.generate(TileType::Dirt, &to_top_down(tile.position))
+                    let new_tile: Option<Tile> = match *state.get() {
+                        ToolModeState::Grass => {
+                            Some(tile_generator.generate(TileType::Grass, &to_top_down(tile.position)))
                         }
-                        TileType::Dirt => {
-                            tile_generator.generate(TileType::Path, &to_top_down(tile.position))
+                        ToolModeState::Dirt => {
+                            Some(tile_generator.generate(TileType::Dirt, &to_top_down(tile.position)))
                         }
-                        TileType::Path => {
-                            tile_generator.generate(TileType::Water, &to_top_down(tile.position))
+                        ToolModeState::Path => {
+                            Some(tile_generator.generate(TileType::Path, &to_top_down(tile.position)))
                         }
-                        TileType::Water => {
-                            tile_generator.generate(TileType::Grass, &to_top_down(tile.position))
+                        ToolModeState::Water => {
+                            Some(tile_generator.generate(TileType::Water, &to_top_down(tile.position)))
                         }
+                        _ => None
                     };
 
-                    *tile = new_tile.clone();
+                    if let Some(new_tile) = new_tile {
+                        *tile = new_tile.clone();
 
-                    let material_handle = material_query.get(entity).unwrap();
+                        let material_handle = material_query.get(entity).unwrap();
 
-                    let material = materials.get_mut(material_handle).unwrap();
+                        let material = materials.get_mut(material_handle).unwrap();
 
-                    material.base_color = new_tile.color;
+                        material.base_color = new_tile.color;
 
-                    if tile.tile_type == TileType::Water {
-                        material.alpha_mode = AlphaMode::Blend;
-                    } else {
-                        material.alpha_mode = AlphaMode::Opaque;
+                        if tile.tile_type == TileType::Water {
+                            material.alpha_mode = AlphaMode::Blend;
+                        } else {
+                            material.alpha_mode = AlphaMode::Opaque;
+                        }
+
+                        let mut transform = transform_query.get_mut(entity).unwrap();
+                        // using tile_size here because tiles are cubes
+                        transform.scale.y = tile.height / tile_settings.tile_size;
+                        transform.translation = tile.position;
                     }
-
-                    let mut transform = transform_query.get_mut(entity).unwrap();
-                    // using tile_size here because tiles are cubes
-                    transform.scale.y = tile.height / tile_settings.tile_size;
-                    transform.translation = tile.position;
                 }
                 Err(_) => {}
             }

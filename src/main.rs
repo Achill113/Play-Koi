@@ -2,22 +2,12 @@ pub mod plugins;
 
 use bevy::{prelude::*, render::{settings::{Backends, RenderCreation, WgpuSettings}, RenderPlugin}};
 use bevy_rapier3d::prelude::*;
-use plugins::{camera_controller::CameraControllerPlugin, hover::HoverPlugin, light::LightPlugin, tile::{TilePlugin, TileSettings, GRID_SIZE}, water::WaterPlugin};
+use plugins::{camera_controller::CameraControllerPlugin, hover::HoverPlugin, light::LightPlugin, tile::{TilePlugin, TileSettings, GRID_SIZE}, tools::ToolsPlugin, water::WaterPlugin};
 
 #[derive(Component)]
 struct Ground;
 
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>, tile_settings: Res<TileSettings>) {
-    // camera
-    // commands.spawn((
-    //     Camera3dBundle {
-    //         transform: Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
-    //         ..default()
-    //     },
-    //     CameraController::default(),
-    //     Name::new("Camera"),
-    // ));
-
     // ground
     let size = tile_settings.tile_size * GRID_SIZE as f32;
 
@@ -55,7 +45,7 @@ fn main() {
         )
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         // .add_plugins(RapierDebugRenderPlugin::default())
-        .add_plugins((WaterPlugin, CameraControllerPlugin, LightPlugin, HoverPlugin, TilePlugin))
+        .add_plugins((WaterPlugin, CameraControllerPlugin, LightPlugin, HoverPlugin, TilePlugin, ToolsPlugin))
         .add_systems(Startup, setup)
         .run();
 }
