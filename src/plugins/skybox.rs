@@ -1,7 +1,5 @@
 use bevy::{asset::LoadState, core_pipeline::Skybox, prelude::*, render::{render_resource::{TextureViewDescriptor, TextureViewDimension}, renderer::RenderDevice, texture::CompressedImageFormats}};
 
-use super::camera_controller::CameraController;
-
 pub struct SkyboxPlugin;
 
 impl Plugin for SkyboxPlugin {
@@ -46,19 +44,6 @@ const CUBEMAP_SWAP_DELAY: f32 = 3.0;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let skybox_handle = asset_server.load(CUBEMAPS[0].0);
-
-    // camera
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        CameraController::default(),
-        Skybox {
-            image: skybox_handle.clone(),
-            brightness: 150.0
-        }
-    ));
 
     // ambient light
     // NOTE: The ambient light is used to scale how bright the environment map is so with a bright

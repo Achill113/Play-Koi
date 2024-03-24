@@ -11,6 +11,9 @@ opt-level = 3
 
 [dependencies]
 bevy = { version = "0.13", features = ["dynamic_linking"] } # TODO: remove dynamic_linking for release
+bevy_mod_picking = "0.18.2"
+bevy_panorbit_camera = "0.16.1"
 bevy_rapier3d = "0.25.0"
 bevy_water = "0.13.0"
 rand = "0.8.5"
+smooth-bevy-cameras = "0.11.0"
